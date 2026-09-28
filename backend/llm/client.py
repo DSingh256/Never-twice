@@ -33,6 +33,10 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
+# Heuristic: model names with a colon ("llama3.2:latest") are Ollama-style tags.
+# Anything from a hosted provider has no colon ("openai/gpt-oss-120b").
+_OLLAMA_STYLE = re.compile(r"^[A-Za-z0-9._/-]+:[A-Za-z0-9._-]+$")
+
 
 class LlmCallError(RuntimeError):
     """Raised when every model in the chain failed to produce valid output."""
@@ -108,12 +112,39 @@ class LlmClient:
     def _task_config(self, task: str):
         return self._cfg.tasks.get(task)
 
+    def _provider_chain(self) -> list[str]:
+        """Provider-default chain, straight from `.env` settings."""
+        s = self._settings
+        if s.llm_provider.lower() == "groq":
+            return [s.groq_model, s.groq_fallback_model]
+        return [s.llm_model, s.llm_fallback_model]
+
     def _model_chain(self, task: str) -> list[str]:
+        """Models for a task, provider-aware.
+
+        Per-task chains in config/llm.yaml win - UNLESS they name models that
+        only make sense for another provider. The shipped llm.yaml uses local
+        Ollama tags as its offline example; when LLM_PROVIDER=groq those names
+        would be sent verbatim to api.groq.com and 404. Substituting the
+        provider's own defaults (GROQ_MODEL / GROQ_FALLBACK_MODEL) keeps one
+        config file valid for both providers, so a provider switch is a pure
+        `.env` change.
+        """
+        s = self._settings
         task_cfg = self._task_config(task)
         if task_cfg and task_cfg.models:
-            return list(task_cfg.models)
-        s = self._settings
-        return [s.llm_model, s.llm_fallback_model]
+            models = list(task_cfg.models)
+            if s.llm_provider.lower() != "ollama" and all(
+                _OLLAMA_STYLE.match(m) for m in models
+            ):
+                logger.info(
+                    "llm chain task=%s has ollama-style models but provider=%s; "
+                    "using provider defaults instead",
+                    task, s.llm_provider,
+                )
+                return self._provider_chain()
+            return models
+        return self._provider_chain()
 
     # ------------------------------------------------------------------ #
     @staticmethod
@@ -246,13 +277,14 @@ class LlmClient:
         if not s.llm_is_configured:
             return {**base, "ok": False, "error": "no API key / base URL configured"}
         try:
+            model = self._model_chain("verdict_no_memory")[0]
             reply = self._completion(
-                s.llm_model,
+                model,
                 "Reply with the single word: pong",
                 "ping",
                 "verdict_no_memory",
             )
             ok = "pong" in reply.lower()
-            return {**base, "ok": ok, "model": s.llm_model, "reply": reply.strip()[:80]}
+            return {**base, "ok": ok, "model": model, "reply": reply.strip()[:80]}
         except Exception as exc:  # noqa: BLE001
             return {**base, "ok": False, "error": f"{type(exc).__name__}: {exc}"[:300]}

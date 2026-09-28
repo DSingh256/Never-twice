@@ -1,16 +1,21 @@
-# Per-task model configuration.
+# Per-task LLM configuration.
 #
-# The provider endpoint and API key come from `.env` (LLM_BASE_URL / LLM_API_KEY).
-# Only the *model chain* lives here, so you can point the whole app at Groq or at
-# a local Ollama daemon without touching this file. Each task is tried in order:
-# `models[0]` first, then each fallback, with retry/backoff between attempts.
+# Provider split of responsibilities:
+#   * endpoint, API key and the model chain for a provider come from `.env`
+#     (LLM_PROVIDER, then GROQ_MODEL/GROQ_FALLBACK_MODEL or
+#     LLM_MODEL/LLM_FALLBACK_MODEL);
+#   * only *task-level tuning* lives here (max_tokens, timeouts, retries).
 #
-# Groq reference models (set LLM_PROVIDER=groq to use these):
-#   primary   openai/gpt-oss-120b
-#   fallback  qwen/qwen3-32b
-# Ollama reference models (LLM_PROVIDER=ollama, the offline default):
-#   primary   llama3.2:latest
-#   fallback  llama3:latest
+# A task MAY pin its own model chain via `models:` - but the chain must name
+# models that exist on the configured provider. Chains of Ollama-style tags
+# (`name:tag`) are treated as the offline example below: when a hosted provider
+# is selected, the client substitutes that provider's defaults instead of
+# sending a local tag to a remote API (which would 404). See
+# backend/llm/client.py::_model_chain.
+#
+# Reference models:
+#   Groq (LLM_PROVIDER=groq):  primary openai/gpt-oss-120b, fallback qwen/qwen3-32b
+#   Ollama (offline default):  primary llama3.2:latest,     fallback llama3:latest
 
 defaults:
   temperature: 0
@@ -24,38 +29,23 @@ defaults:
 tasks:
   # Turns cleaned postmortem prose into the Incident schema.
   extraction:
-    models:
-      - llama3.2:latest
-      - llama3:latest
     max_tokens: 4096
     # Extraction is a structured-reasoning task: give it the most room.
     timeout_seconds: 300
 
   # Turns a unified diff into structured change facts (no verdict).
   diff_understanding:
-    models:
-      - llama3.2:latest
-      - llama3:latest
     max_tokens: 2048
 
   # Produces the RiskVerdict by reasoning over recalled evidence.
   verdict:
-    models:
-      - llama3.2:latest
-      - llama3:latest
     max_tokens: 3072
     timeout_seconds: 300
 
   # Writes a realistic PR diff that introduces a given failure precursor.
   benchmark_generation:
-    models:
-      - llama3.2:latest
-      - llama3:latest
     max_tokens: 2048
 
   # Condition A of the evaluation: a verdict from the diff alone, no memory.
   verdict_no_memory:
-    models:
-      - llama3.2:latest
-      - llama3:latest
     max_tokens: 1536

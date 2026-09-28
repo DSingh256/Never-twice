@@ -112,7 +112,11 @@ class LlmDefaults(BaseModel):
 
 
 class LlmTask(BaseModel):
-    models: list[str]
+    # Optional: pin an explicit provider-specific chain here. When omitted - or
+    # when the chain names models from another provider (Ollama-style tags with
+    # a hosted provider selected) - the client substitutes the provider's
+    # defaults from `.env`. See backend/llm/client.py::_model_chain.
+    models: list[str] | None = None
     max_tokens: int = 2048
     timeout_seconds: int | None = None
 
