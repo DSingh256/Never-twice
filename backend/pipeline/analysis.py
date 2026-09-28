@@ -216,6 +216,59 @@ def _reflect_query(facts: ChangeFact, evidence: list[MemoryHit], feedback: list[
 
 
 # --------------------------------------------------------------------------- #
+# Verdict sanitisation - the LLM must never be able to crash the pipeline.
+# --------------------------------------------------------------------------- #
+_LEVEL_ALIASES = {
+    "critical": "high", "severe": "high", "extreme": "high", "blocker": "high",
+    "urgent": "high", "dangerous": "high",
+    "moderate": "medium", "mid": "medium", "warning": "medium", "elevated": "medium",
+    "minor": "low", "potential": "low", "possible": "low", "slight": "low",
+    "informational": "none", "info": "none", "safe": "none", "ok": "none",
+    "no risk": "none", "benign": "none", "unknown": "none",
+}
+_CANONICAL_LEVELS = ("high", "medium", "low", "none")
+
+
+def _normalise_level(raw: Any) -> str:
+    """Map whatever the model returned onto a canonical risk level.
+
+    qwen2.5 and friends occasionally answer 'potentially high' or 'critical'
+    despite the schema enum. Validation would crash the analysis; instead we
+    coerce honestly (substring matching keeps 'potentially high' -> high) and
+    fall back to 'none'. Never fabricates a level that was not implied.
+    """
+    if not isinstance(raw, str):
+        return "none"
+    v = raw.strip().lower()
+    if v in _CANONICAL_LEVELS:
+        return v
+    # Canonical substring BEFORE aliases: 'potentially high' must resolve to
+    # 'high', not trip the 'potential'->'low' alias.
+    for canonical in _CANONICAL_LEVELS:
+        if canonical in v:
+            return canonical
+    for alias, mapped in _LEVEL_ALIASES.items():
+        if alias in v:
+            return mapped
+    return "none"
+
+
+def _as_str_list(raw: Any, limit: int = 8) -> list[str]:
+    """Coerce an LLM field into a clean list[str] (singletons, junk tolerated)."""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        raw = [raw]
+    if not isinstance(raw, list):
+        return []
+    return [str(x).strip() for x in raw[:limit] if str(x).strip()]
+
+
+def _as_str(raw: Any) -> str:
+    return raw if isinstance(raw, str) else ("" if raw is None else str(raw))
+
+
+# --------------------------------------------------------------------------- #
 # Orchestrator
 # --------------------------------------------------------------------------- #
 async def run_analysis(
@@ -323,12 +376,14 @@ async def run_analysis(
 
         matched = []
         for m in (structured.get("matched_incidents") or [])[:6]:
+            if not isinstance(m, dict):
+                continue
             matched.append({
-                "why_similar": m.get("why_similar", ""),
-                "what_failed_before": m.get("what_failed_before", ""),
-                "failed_fixes": m.get("failed_fixes") or [],
-                "what_worked": m.get("what_worked"),
-                "memory_texts": [m.get("incident_key", "")],
+                "why_similar": _as_str(m.get("why_similar")),
+                "what_failed_before": _as_str(m.get("what_failed_before")),
+                "failed_fixes": _as_str_list(m.get("failed_fixes")),
+                "what_worked": m.get("what_worked") if isinstance(m.get("what_worked"), str) else None,
+                "memory_texts": [_as_str(m.get("incident_key"))],
                 "incident_ids": sorted({
                     incident_lookup.get(h.document_id)
                     for h in hits
@@ -358,26 +413,30 @@ async def run_analysis(
         )
 
         # Small-sample guard: a lone memory cannot justify an elevated verdict.
-        level = structured.get("level", "none")
+        # Level is normalised first - an off-enum LLM answer must not crash here.
+        level = _normalise_level(structured.get("level"))
         if level in ("high", "medium") and evidence_count < cfg.app.risk.min_evidence_for_elevated:
             level = "low"
             structured["rationale"] = (
-                f"[downgraded: only {evidence_count} supporting memory] " + structured.get("rationale", "")
+                f"[downgraded: only {evidence_count} supporting memory] " + _as_str(structured.get("rationale"))
             )
+
+        rationale = _as_str(structured.get("rationale"))
+        suggested_checks = _as_str_list(structured.get("suggested_checks"))
 
         verdict = RiskVerdict(
             level=level,
-            rationale=structured.get("rationale", ""),
+            rationale=rationale,
             matched_incidents=[MatchedIncident(**{
                 "incident_id": None,  # resolved below from matched[i]['incident_ids']
                 "source_url": None,
-                "title": (m.get("incident_key") or "")[:120],
-                "why_similar": m.get("why_similar", ""),
-                "what_failed_before": m.get("what_failed_before", ""),
-                "failed_fixes": m.get("failed_fixes", []),
-                "what_worked": m.get("what_worked"),
+                "title": _as_str(m.get("incident_key"))[:120],
+                "why_similar": m["why_similar"],
+                "what_failed_before": m["what_failed_before"],
+                "failed_fixes": m["failed_fixes"],
+                "what_worked": m["what_worked"],
             }) for m in matched],
-            suggested_checks=structured.get("suggested_checks", []),
+            suggested_checks=suggested_checks,
             learned_from_feedback=feedback_influences,
             evidence_count=evidence_count,
             supporting_memory_ids=supporting_ids,
