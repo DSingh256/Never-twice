@@ -114,7 +114,12 @@ async def memory_list(
     hindsight = get_hindsight()
     try:
         client = hindsight._get_async()
-        kwargs: dict[str, Any] = {"limit": min(limit, 200), "offset": offset}
+        # Tag filtering happens AFTER listing (the list API filters by type,
+        # not tags), so with a tag we must fetch a WIDE window and then slice;
+        # fetching only `limit` units would filter inside a tiny slice of the
+        # bank and report honest-looking but wrong zeros.
+        fetch_limit = 1000 if tag else min(limit, 200)
+        kwargs: dict[str, Any] = {"limit": fetch_limit, "offset": 0 if tag else offset}
         if type:
             kwargs["type"] = type
         if q:
@@ -127,24 +132,28 @@ async def memory_list(
     results = [_item_to_dict(i) for i in items]
 
     if tag:
-        # document_id -> tags, derived from the audit tables (exact, no guessing).
-        # Feedback submissions keep their own audit rows whose document ids are
-        # deterministic (feedback-analysis-{id}); RetainedMemory rows carry tags
-        # directly. Both are real records - nothing is inferred.
+        # document_id -> tags, derived from the audit tables (exact, no
+        # guessing). RetainedMemory rows store their extra tags; the `kind:`
+        # tag is added inside retain_memory from memory_kind, so it is derived
+        # here from that stored column. Feedback submissions keep their own
+        # audit rows with deterministic document ids.
         doc_tags: dict[str, list[str]] = {}
         for r in session.exec(select(RetainedMemory)).all():
             if r.document_id:
                 doc_tags.setdefault(r.document_id, []).extend(r.tags or [])
+                if r.memory_kind:
+                    doc_tags[r.document_id].append(f"kind:{r.memory_kind}")
         for f in session.exec(select(Feedback)).all():
             doc_tags.setdefault(f"feedback-analysis-{f.analysis_id}", []).extend(
                 ["kind:feedback", f"feedback_verdict:{f.verdict}"]
             )
         results = [r for r in results if tag in doc_tags.get(r.get("document_id") or "", [])]
         total = len(results)
+        results = results[offset : offset + limit]
     else:
         total = len(results)
 
-    return {"memories": results[:limit], "total": total}
+    return {"memories": results, "total": total}
 
 
 @memory_router.get("/memory/graph")

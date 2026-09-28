@@ -106,6 +106,27 @@ class ChangeFact(BaseModel):
             v = [v]
         return [str(item).strip() for item in v if str(item).strip()]
 
+    @field_validator("value_changes", mode="before")
+    @classmethod
+    def _clean_value_changes(cls, v: Any) -> list[dict[str, str]]:
+        """Models emit {"old": null} for non-value diffs; a null old/new is a
+        fact ('not present before'), not a validation error. Coerce, don't
+        retry - this step runs in every analysis and every eval condition."""
+        if not isinstance(v, list):
+            return []
+        out: list[dict[str, str]] = []
+        for item in v:
+            if not isinstance(item, dict):
+                continue
+            out.append(
+                {
+                    "key": "" if item.get("key") is None else str(item.get("key")),
+                    "old": "" if item.get("old") is None else str(item.get("old")),
+                    "new": "" if item.get("new") is None else str(item.get("new")),
+                }
+            )
+        return out
+
 
 class MatchedIncident(BaseModel):
     """A historical incident matched by recall, as presented in a verdict."""

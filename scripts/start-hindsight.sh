@@ -34,6 +34,11 @@ export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8}"
 export HINDSIGHT_API_LLM_PROVIDER="${HINDSIGHT_API_LLM_PROVIDER:-ollama}"
 export HINDSIGHT_API_LLM_MODEL="${HINDSIGHT_API_LLM_MODEL:-qwen2.5:7b}"
 export HINDSIGHT_API_LLM_BASE_URL="${HINDSIGHT_API_LLM_BASE_URL:-http://127.0.0.1:11434/v1}"
+# Reflect's default LLM deadline is 30s (HINDSIGHT_API config.py
+# DEFAULT_REFLECT_LLM_TIMEOUT). qwen2.5:7b on CPU - especially when ollama is
+# also swapping the app's llama3.2 in and out - needs far more. 900s covers a
+# cold model load plus a full tool-calling reflect.
+export HINDSIGHT_API_LLM_TIMEOUT="${HINDSIGHT_API_LLM_TIMEOUT:-900}"
 
 # --- Embeddings / reranking ---
 export HINDSIGHT_API_EMBEDDINGS_PROVIDER="${HINDSIGHT_API_EMBEDDINGS_PROVIDER:-onnx}"
