@@ -193,3 +193,48 @@ class EvalItem(SQLModel, table=True):
     supporting_memory_ids: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     latency_ms: Optional[int] = None
     error: Optional[str] = Field(default=None, sa_column=Column(Text))
+
+
+class TribunalRun(SQLModel, table=True):
+    """A live A/B/C cross-examination of ONE submitted diff.
+
+    The Tribunal turns the eval harness's before/after comparison into a
+    first-class demo: the same diff is judged three times - by the naked LLM
+    (A), by the LLM with recalled memories as context (B), and by the full
+    production pipeline (C) - so the value of organizational memory is visible
+    in a single screen, on the caller's own change.
+    """
+
+    __tablename__ = "tribunal_runs"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    # running | done | failed
+    status: str = Field(default="running", index=True)
+    # ui | api
+    origin: str = "ui"
+    repo: Optional[str] = None
+    service: Optional[str] = None
+    pr_title: Optional[str] = None
+    diff: str = Field(default="", sa_column=Column(Text))
+    error: Optional[str] = Field(default=None, sa_column=Column(Text))
+    duration_ms: Optional[int] = None
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    finished_at: Optional[datetime] = None
+
+
+class TribunalItem(SQLModel, table=True):
+    """One witness's verdict inside a tribunal run (condition A, B or C)."""
+
+    __tablename__ = "tribunal_items"
+    __table_args__ = (UniqueConstraint("run_id", "condition", name="uq_tribunal_item"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    run_id: int = Field(foreign_key="tribunal_runs.id", index=True)
+    condition: str = Field(index=True)  # A | B | C
+    # pending | running | ok | failed
+    status: str = Field(default="pending", index=True)
+    verdict: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    evidence_count: int = 0
+    latency_ms: Optional[int] = None
+    error: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=utcnow)

@@ -52,6 +52,7 @@ def create_app() -> FastAPI:
     from backend.api.ingest import ingest_router
     from backend.api.memory import memory_router
     from backend.api.routes import config_router, health_router
+    from backend.api.tribunal import tribunal_router
     from backend.api.webhooks import webhook_router
 
     app.include_router(health_router, prefix="/api")
@@ -61,6 +62,7 @@ def create_app() -> FastAPI:
     app.include_router(feedback_router, prefix="/api")
     app.include_router(memory_router, prefix="/api")
     app.include_router(eval_router, prefix="/api")
+    app.include_router(tribunal_router, prefix="/api")
     app.include_router(webhook_router, prefix="/api")
 
     @app.get("/")

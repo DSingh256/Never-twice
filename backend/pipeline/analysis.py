@@ -14,6 +14,7 @@ in code afterwards.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -269,7 +270,19 @@ def _as_str_list(raw: Any, limit: int = 8) -> list[str]:
 
 
 def _as_str(raw: Any) -> str:
-    return raw if isinstance(raw, str) else ("" if raw is None else str(raw))
+    """Stringify an LLM field; the JSON literal 'null' means 'no value', not text.
+
+    Models occasionally emit the four characters N-u-l-l inside a string field
+    (seen live in matched_incidents.what_failed_before). Rendering them would
+    put fabricated content on a forensic page, so they are dropped.
+    """
+    if raw is None:
+        return ""
+    if not isinstance(raw, str):
+        return str(raw)
+    if raw.strip().lower() == "null":
+        return ""
+    return raw
 
 
 # --------------------------------------------------------------------------- #
@@ -348,13 +361,30 @@ async def run_analysis(
         t0 = time.time()
         emitter.emit("reflect", "started", "Reasoning over historical evidence")
         evidence_text = _reflect_query(facts, hits, feedback_hits)
-        reflect_result = await hindsight.areflect(
-            query=evidence_text,
-            context=f"Never Twice risk analysis for {analysis.repo or 'a service change'}",
-            budget=cfg.app.memory.reflect_budget,
-            max_tokens=cfg.app.memory.reflect_max_tokens,
-            response_schema=REFLECT_SCHEMA,
-        )
+
+        # Reflect is an agentic tool-calling loop; local models occasionally
+        # answer in prose instead of calling a tool (seen live with
+        # qwen2.5:7b). One retry after a pause turns that flake class from a
+        # failed analysis into a slower successful one.
+        reflect_result: dict[str, Any] | None = None
+        last_reflect_error: Exception | None = None
+        for attempt in range(2):
+            try:
+                reflect_result = await hindsight.areflect(
+                    query=evidence_text,
+                    context=f"Never Twice risk analysis for {analysis.repo or 'a service change'}",
+                    budget=cfg.app.memory.reflect_budget,
+                    max_tokens=cfg.app.memory.reflect_max_tokens,
+                    response_schema=REFLECT_SCHEMA,
+                )
+                break
+            except Exception as exc:  # noqa: BLE001
+                last_reflect_error = exc
+                logger.warning("reflect attempt %d failed: %s", attempt + 1, exc)
+                if attempt == 0:
+                    await asyncio.sleep(4)
+        if reflect_result is None:
+            raise last_reflect_error or RuntimeError("reflect failed")
         structured = reflect_result.get("structured_output") or {}
         emitter.emit(
             "reflect",

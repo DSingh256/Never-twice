@@ -405,3 +405,165 @@ def _compute_metrics(session: Session, run_id: int, case_ids: list[str]) -> dict
     out["total_items"] = len(rows)
     out["benchmark_cases"] = len(case_ids)
     return out
+
+
+# --------------------------------------------------------------------------- #
+# The Tribunal: live A/B/C cross-examination of ONE submitted diff
+# --------------------------------------------------------------------------- #
+def run_tribunal_sync(run_id: int) -> None:
+    """Run all three witnesses for a TribunalRun, persisting progress live.
+
+    Designed to execute in a worker thread off the request path (the API
+    returns the run id immediately; the poll endpoint streams each witness as
+    it lands). Each witness commits its own row, so a slow reflect in witness
+    C never hides witness A's verdict. A failing witness records its error and
+    the others still testify.
+
+    Witness C runs the production pipeline via asyncio.run (same bridge as
+    _run_condition_c). That creates a fresh loop-bound Hindsight client, so the
+    process-wide singleton is reset afterwards - the main event loop recreates
+    its own client lazily on next use.
+    """
+    import asyncio
+
+    import backend.memory.hindsight_client as hc
+    from backend.db.models import TribunalItem, TribunalRun
+    from backend.db.session import session_scope
+    from backend.pipeline.analysis import run_analysis
+    from backend.pipeline.benchmark import BenchmarkCase
+
+    t0 = time.time()
+    with session_scope() as session:
+        run = session.get(TribunalRun, run_id)
+        if run is None:
+            return
+        diff = run.diff
+        pr_title = run.pr_title or "(untitled change)"
+        service = run.service
+
+        # Witness rows exist from the start so the UI can show pending seats.
+        rows: dict[str, TribunalItem] = {
+            cond: TribunalItem(run_id=run.id, condition=cond, status="pending")
+            for cond in ("A", "B", "C")
+        }
+        for row in rows.values():
+            session.add(row)
+        session.commit()
+
+        def _set(cond: str, **fields: Any) -> None:
+            for k, v in fields.items():
+                setattr(rows[cond], k, v)
+            session.add(rows[cond])
+            session.commit()
+
+        def _case() -> BenchmarkCase:
+            return BenchmarkCase(
+                case_id=f"tribunal-{run.id}", incident_id=0, incident_title="",
+                source_url="", kind="tribunal", expected_label=0,
+                pr_title=pr_title, diff=diff,
+            )
+
+        client = LlmClient()
+        hindsight = get_hindsight()
+        hindsight_ok = hindsight.health().get("ok", False)
+        cfg = get_app_config()
+
+        failures = 0
+
+        # --- Witness A: the naked LLM. No memory, no context. -------------
+        _set("A", status="running")
+        wa = time.time()
+        try:
+            verdict = _run_condition_a(_case(), client)
+            _set("A", status="ok", verdict=verdict, evidence_count=0,
+                 latency_ms=int((time.time() - wa) * 1000))
+        except Exception as exc:  # noqa: BLE001
+            failures += 1
+            _set("A", status="failed", error=f"{type(exc).__name__}: {exc}"[:500],
+                 latency_ms=int((time.time() - wa) * 1000))
+
+        # --- Witness B: the LLM shown recalled memories as plain context --
+        _set("B", status="running")
+        wb = time.time()
+        try:
+            if not hindsight_ok:
+                raise RuntimeError("memory bank unreachable")
+            verdict = _run_condition_b(_case(), client, hindsight)
+            _set("B", status="ok", verdict=verdict,
+                 evidence_count=int(verdict.get("evidence_count", 0)),
+                 latency_ms=int((time.time() - wb) * 1000))
+        except Exception as exc:  # noqa: BLE001
+            failures += 1
+            _set("B", status="failed", error=f"{type(exc).__name__}: {exc}"[:500],
+                 latency_ms=int((time.time() - wb) * 1000))
+
+        # --- Witness C: the full production pipeline -----------------------
+        _set("C", status="running")
+        wc = time.time()
+        try:
+            if not hindsight_ok:
+                raise RuntimeError("memory bank unreachable")
+
+            async def _once() -> Any:
+                hc._hindsight_singleton = None
+                h = hc.get_hindsight()
+                try:
+                    analysis = Analysis(
+                        status="running", origin="api", service=service,
+                        pr_title=f"[tribunal:{run.id}] {pr_title}", diff=diff,
+                    )
+                    session.add(analysis)
+                    session.commit()
+                    session.refresh(analysis)
+                    return await run_analysis(session, analysis, emit_to=None)
+                finally:
+                    await h.aclose()
+
+            def _invoke() -> Any:
+                return asyncio.run(_once())
+
+            try:
+                result = _invoke()
+            except Exception as inner:  # noqa: BLE001
+                # Hosted LLM providers advertise a quota-reset timestamp on 429s
+                # ("... retry at 2026-...+00:00"). A live demo should ride out a
+                # short window once instead of collapsing the witness.
+                import re
+
+                from datetime import datetime, timezone as _tz
+
+                match = re.search(r"retry at (\S+)", str(inner))
+                wait = None
+                if match:
+                    try:
+                        retry_at = datetime.fromisoformat(match.group(1).replace("Z", "+00:00"))
+                        wait = (retry_at - datetime.now(_tz.utc)).total_seconds()
+                    except ValueError:
+                        wait = None
+                if wait is not None and 0 < wait <= 120:
+                    logger.warning("tribunal witness C: quota window %.0fs; waiting once", wait)
+                    time.sleep(wait + 2)
+                    result = _invoke()
+                else:
+                    raise
+            if result.status != "done" or not result.verdict:
+                raise RuntimeError(result.error or "production pipeline returned no verdict")
+            _set("C", status="ok", verdict=dict(result.verdict),
+                 evidence_count=int(result.evidence_count or 0),
+                 latency_ms=int((time.time() - wc) * 1000))
+        except Exception as exc:  # noqa: BLE001
+            failures += 1
+            _set("C", status="failed", error=f"{type(exc).__name__}: {exc}"[:500],
+                 latency_ms=int((time.time() - wc) * 1000))
+        finally:
+            # Witness C's private async client was loop-bound; drop the global
+            # so the server's own loop rebuilds a healthy client next call.
+            hc._hindsight_singleton = None
+
+        run.status = "failed" if failures == 3 else "done"
+        run.duration_ms = int((time.time() - t0) * 1000)
+        from datetime import datetime, timezone
+
+        run.finished_at = datetime.now(timezone.utc)
+        session.add(run)
+        session.commit()

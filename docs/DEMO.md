@@ -28,7 +28,35 @@ Talking point: "These are not chunks of prose. Each unit is a typed fact — the
 *failed fix* units are the gold: RAG demos tell you what broke; this tells you
 what a smart team already tried in vain."
 
-## 2. The gate (3 min) — Analysis Room
+## 2. The Tribunal (4 min) — the before/after, live
+
+Open **/tribunal**. Load the dns-resolver diff, press **convene the tribunal**.
+
+The same diff is judged three times, witnesses testifying in sequence:
+
+- **Witness A — the naked model.** Knows nothing about the org. Verdict:
+  LOW RISK, ~13% confidence, evidence 0.
+- **Witness B — shown the archive.** Same model, given recalled memories as
+  plain context. Verdict: HIGH RISK, ~86%, evidence 135.
+- **Witness C — the full production pipeline.** Recall + reflect (agentic,
+  tool-calling) + engineer feedback. Verdict: HIGH RISK with incident
+  citations and feedback memories.
+
+The **delta panel** lands last: confidence shift (+~64 pts), verdict shift
+(low → high), and the count of lived-experience memories applied.
+
+Talking point: "The naked model guesses from first principles. The moment it
+can read the archive, it knows this exact change caused an outage before. The
+delta between the two is the value of organizational memory, measured on your
+own change — live, not in a paper table."
+
+Command-line version (same proof, scriptable):
+
+```bash
+.venv/Scripts/python.exe scripts/tribunal_probe.py
+```
+
+## 2b. The gate (3 min) — Analysis Room
 
 Open **/analyze**. Paste the dangerous diff (from the demo box below or any
 risky terraform change) and press **run verdict**.

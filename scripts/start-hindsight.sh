@@ -29,16 +29,29 @@ export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8}"
 
 # --- LLM backend (OpenAI-compatible endpoint) ---
 # NOTE: the model must support tool calling - Hindsight reflect drives its
-# internal retrieval through tool calls and 500s without one. qwen2.5:7b does;
-# llama3.2:latest (3B) emits malformed tool calls and does not.
+# internal retrieval through tool calls and 500s without one.
+#
+# Default: LOCAL ollama (qwen2.5:7b, 900s timeout). Deliberate: reflect makes
+# several LARGE tool-call round trips, and on a hosted free tier that trips
+# rolling quota windows mid-demo - the local model has no quota, works offline,
+# and keeps incident text on the box (a real deployment consideration). The
+# app's own verdict calls stay on hosted Groq for speed; only reflect is local.
+# Hosted alternative (fast reflect while quota lasts; needs a large-context
+# tool-calling model like openai/gpt-oss-120b):
+#   HINDSIGHT_API_LLM_PROVIDER=groq \
+#   HINDSIGHT_API_LLM_MODEL=openai/gpt-oss-120b \
+#   bash scripts/start-hindsight.sh
 export HINDSIGHT_API_LLM_PROVIDER="${HINDSIGHT_API_LLM_PROVIDER:-ollama}"
 export HINDSIGHT_API_LLM_MODEL="${HINDSIGHT_API_LLM_MODEL:-qwen2.5:7b}"
 export HINDSIGHT_API_LLM_BASE_URL="${HINDSIGHT_API_LLM_BASE_URL:-http://127.0.0.1:11434/v1}"
 # Reflect's default LLM deadline is 30s (HINDSIGHT_API config.py
-# DEFAULT_REFLECT_LLM_TIMEOUT). qwen2.5:7b on CPU - especially when ollama is
-# also swapping the app's llama3.2 in and out - needs far more. 900s covers a
-# cold model load plus a full tool-calling reflect.
-export HINDSIGHT_API_LLM_TIMEOUT="${HINDSIGHT_API_LLM_TIMEOUT:-900}"
+# DEFAULT_REFLECT_LLM_TIMEOUT). Local CPU models need 900s to cover a cold model
+# load plus a full tool-calling reflect; hosted Groq needs ~120s headroom.
+if [ "${HINDSIGHT_API_LLM_PROVIDER:-ollama}" = "groq" ]; then
+  export HINDSIGHT_API_LLM_TIMEOUT="${HINDSIGHT_API_LLM_TIMEOUT:-120}"
+else
+  export HINDSIGHT_API_LLM_TIMEOUT="${HINDSIGHT_API_LLM_TIMEOUT:-900}"
+fi
 
 # --- Embeddings / reranking ---
 export HINDSIGHT_API_EMBEDDINGS_PROVIDER="${HINDSIGHT_API_EMBEDDINGS_PROVIDER:-onnx}"

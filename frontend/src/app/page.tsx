@@ -151,6 +151,12 @@ export default async function Briefing() {
         <ArchivePanel label="Archive index">
           <ul className="space-y-2 font-mono text-xs">
             <li>
+              <Link href="/tribunal" className="underline">
+                Tribunal
+              </Link>{" "}
+              — one diff, judged with and without memory, live
+            </li>
+            <li>
               <Link href="/atlas" className="underline">
                 Atlas
               </Link>{" "}
