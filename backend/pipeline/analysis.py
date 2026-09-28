@@ -254,14 +254,18 @@ def _normalise_level(raw: Any) -> str:
 
 
 def _as_str_list(raw: Any, limit: int = 8) -> list[str]:
-    """Coerce an LLM field into a clean list[str] (singletons, junk tolerated)."""
+    """Coerce an LLM field into a clean list[str] (singletons, junk tolerated).
+
+    None entries are dropped, not stringified - a null inside a list means
+    'no value', it never means the four characters N-u-l-l.
+    """
     if raw is None:
         return []
     if isinstance(raw, str):
         raw = [raw]
     if not isinstance(raw, list):
         return []
-    return [str(x).strip() for x in raw[:limit] if str(x).strip()]
+    return [str(x).strip() for x in raw[:limit] if x is not None and str(x).strip()]
 
 
 def _as_str(raw: Any) -> str:

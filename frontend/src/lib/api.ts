@@ -76,27 +76,34 @@ export type MemoryStats = {
 export type EvalRunSummary = {
   runs: Array<{
     id: string;
+    status: string;
+    label: string | null;
+    item_count: number;
     created_at: string | null;
-    conditions: string[];
-    items: number;
-    summary?: Record<string, unknown>;
+    summary?: Record<string, unknown> | null;
+    error?: string | null;
   }>;
 };
 
 export type EvalRunDetail = {
   id?: string;
+  status?: string;
   created_at?: string | null;
-  conditions?: string[];
   items?: Array<{
     id?: number;
-    incident_id?: number;
+    case_id?: string;
     condition?: string;
-    level?: string | null;
-    confidence?: number | null;
+    expected_label?: number;
+    predicted_level?: string | null;
+    predicted_positive?: boolean;
     correct?: boolean | null;
-    [k: string]: unknown;
+    confidence?: number | null;
+    evidence_count?: number;
+    latency_ms?: number | null;
+    error?: string | null;
   }>;
-  summary?: Record<string, unknown>;
+  config_snapshot?: Record<string, unknown> | null;
+  summary?: Record<string, unknown> | null;
   error?: string | null;
 };
 
