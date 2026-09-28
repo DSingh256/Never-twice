@@ -62,8 +62,17 @@ async def _fetch_pr_diff(pr_url: str) -> tuple[str, str, str, int | None]:
         headers["Authorization"] = f"Bearer {settings.github_token}"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
-        diff_resp = await client.get(api_url, headers=headers)
-        diff_resp.raise_for_status()
+        try:
+            diff_resp = await client.get(api_url, headers=headers)
+            diff_resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            detail = (
+                "GitHub rate limit reached; configure GITHUB_TOKEN"
+                if status == 403
+                else f"GitHub returned {status} for {pr_url}"
+            )
+            raise HTTPException(status_code=502, detail=detail)
         diff = diff_resp.text
 
         meta_headers = dict(headers, Accept="application/vnd.github+json")

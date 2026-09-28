@@ -106,3 +106,50 @@ a deterministic selection policy (`max_total: 30`, `max_per_org: 3`).
 **Why:** The brief forbids invented data. 105 real URLs were harvested from the
 index (AWS, Cloudflare, GitHub, Google Cloud, CircleCI, ...); the selection
 policy keeps the org mix balanced without hand-picking.
+
+---
+
+## D8. The evaluation must survive contact with a shared memory bank
+
+**Decision:** The eval harness verifies split integrity *before* scoring
+(`GET /api/eval/split-check`), purges leaked held-out documents by their
+deterministic document IDs when found, chooses the feedback warm-up slice
+**per incident**, and excludes warm-up incidents from scoring in *every*
+condition so A/B/C always compare the identical case set.
+
+**Why:** Discovered by the harness itself during the build: (1) the first
+ingestion predated the split-default fix and all 9 held-out incidents sat in
+the production bank - the live split-check caught it and
+`scripts/purge_heldout_from_bank.py` removed 30 documents; (2) warm-up sliced
+by case order let `i2-risky`'s good_catch feedback recall when scoring sibling
+cases of the same incident - visible in run 4 where C flagged the safe siblings
+that B correctly passed. Per-incident warm-up removes the leak structurally,
+not statistically.
+
+**Consequence:** A "worse" number in the table is always interpretable: the
+small-sample guard downgrading on thin recall, a model lapse, or a genuinely
+hard case - each one inspectable per-item in `eval_items`, never averaged away.
+
+---
+
+## D9. Local-model realities are configuration, not code
+
+**Decision:** Three live-verified operational facts are encoded in
+`scripts/start-hindsight.sh` and `.env.example` rather than discovered anew by
+every demo: reflect's built-in LLM deadline (30 s) is far under what
+`qwen2.5:7b` on CPU needs, so `HINDSIGHT_API_LLM_TIMEOUT=900`; the Hindsight
+sync client gets a fresh instance per call because its cached aiohttp pool is
+bound to whichever event loop created it (worker threads die with "Timeout
+context manager should be used inside a task"); and model JSON that puts
+literal newlines inside strings is parsed with `strict=False` before a
+model-chain fallback is burned.
+
+**Why:** Each was a real, reproduced failure during the eval runs (condition C
+dying on Hindsight 500s, condition B dying on loop-bound pools, safe-case
+generation failing on diffs-in-JSON). They are properties of the local
+toolchain, so they belong in the ops layer; the product code stays
+toolchain-agnostic.
+
+**Consequence:** After these fixes run 5 completed with A/B/C scored on the
+same 6-case set: accuracy 0.33 -> 0.60 -> 0.80, F1 0.0 -> 0.50 -> 0.86, zero
+false positives in B and C - with every miss still inspectable.
