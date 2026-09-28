@@ -194,18 +194,28 @@ def _run_condition_c(case: BenchmarkCase, session: Session) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 # Warm-up feedback simulation for condition C
 # --------------------------------------------------------------------------- #
-def warmup_feedback(session: Session, cases: list[BenchmarkCase], hindsight: Any) -> int:
-    """Retain ground-truth-derived feedback for the warm-up slice of cases.
+def warmup_feedback(session: Session, cases: list[BenchmarkCase], hindsight: Any) -> set[int]:
+    """Retain ground-truth-derived feedback for the warm-up slice of incidents.
 
-    Only warm-up cases (first `feedback_warmup_fraction` of the benchmark,
-    deterministic order) generate feedback, so scored items are never graded
-    on their own label. Feedback text mirrors what a real engineer would say.
-    Returns the number of feedback memories retained.
+    The warm-up slice is chosen PER INCIDENT (first `feedback_warmup_fraction`
+    of incidents in deterministic order), and warm-up incidents are excluded
+    from scoring in every condition. Slicing by case would leak: feedback for
+    `i2-risky` recalls when scoring sibling cases `i2-safe` / `i2-near-miss`
+    of the same incident, grading them with their own ground truth.
+
+    Returns the set of warm-up incident ids.
     """
     frac = get_app_config().eval.scoring.feedback_warmup_fraction
-    warmup = cases[: int(len(cases) * frac)]
+    by_incident: dict[int, list[BenchmarkCase]] = {}
+    for case in cases:
+        by_incident.setdefault(case.incident_id, []).append(case)
+    ordered = sorted(by_incident.keys())
+    warmup_ids = set(ordered[: int(len(ordered) * frac)])
+
     retained = 0
-    for case in warmup:
+    for case in cases:
+        if case.incident_id not in warmup_ids:
+            continue
         verdict = "good_catch" if case.expected_label == 1 else "false_positive"
         note = (
             f"Confirmed alert for a change like: {case.pr_title}. This pattern caused a real incident before."
@@ -215,7 +225,7 @@ def warmup_feedback(session: Session, cases: list[BenchmarkCase], hindsight: Any
         try:
             hindsight.retain_memory(
                 content=f"Engineer feedback on a Never Twice risk verdict: '{verdict}'. {note}",
-                context="Eval harness simulated engineer feedback (warm-up slice only)",
+                context="Eval harness simulated engineer feedback (warm-up incidents only)",
                 memory_kind="feedback",
                 tags=[f"eval_case:{case.case_id}", "eval:warmup"],
                 metadata={"case_id": case.case_id, "feedback_verdict": verdict},
@@ -224,7 +234,8 @@ def warmup_feedback(session: Session, cases: list[BenchmarkCase], hindsight: Any
             retained += 1
         except Exception as exc:  # noqa: BLE001
             logger.warning("warm-up feedback retain failed case=%s: %s", case.case_id, exc)
-    return retained
+    logger.info("warm-up: %d feedback memories for incidents %s", retained, sorted(warmup_ids))
+    return warmup_ids
 
 
 # --------------------------------------------------------------------------- #
@@ -291,16 +302,20 @@ def run_ablation(session: Session, benchmark_path: str | None = None,
     session.refresh(run)
 
     hindsight_ok = hindsight.health().get("ok", False)
-    warmup_count = 0
+    warmup_incident_ids: set[int] = set()
     if hindsight_ok:
         try:
-            warmup_count = warmup_feedback(session, cases, hindsight)
+            warmup_incident_ids = warmup_feedback(session, cases, hindsight)
         except Exception as exc:  # noqa: BLE001
             logger.warning("warm-up feedback failed: %s", exc)
 
+    # Warm-up incidents are held out of scoring in EVERY condition, so the
+    # A/B/C columns always compare the identical case set.
+    scored_cases = [c for c in cases if c.incident_id not in warmup_incident_ids]
+
     items_done = 0
     try:
-        for case in cases:
+        for case in scored_cases:
             for cond_key in ("A", "B", "C"):
                 cond = conditions.get(cond_key)
                 if cond is None:
@@ -347,7 +362,7 @@ def run_ablation(session: Session, benchmark_path: str | None = None,
                 session.commit()
                 items_done += 1
 
-        metrics = _compute_metrics(session, run.id, [c.case_id for c in cases])
+        metrics = _compute_metrics(session, run.id, [c.case_id for c in scored_cases])
         run.metrics = metrics
         run.status = "done"
     except Exception as exc:  # noqa: BLE001
