@@ -1,0 +1,62 @@
+# Never Twice - full stack for a demo box with Docker.
+#
+#   docker compose up -d --build
+#
+# The Hindsight image runs with an embedded Postgres profile; Ollama is expected
+# on the host (ports 11434) or set LLM_PROVIDER=groq + GROQ_API_KEY to go cloud.
+# Secrets come from `.env` only - nothing is baked into these images.
+
+services:
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight-api-slim:0.10.1
+    environment:
+      HINDSIGHT_API_LLM_PROVIDER: ${HINDSIGHT_API_LLM_PROVIDER:-ollama}
+      HINDSIGHT_API_LLM_MODEL: ${HINDSIGHT_API_LLM_MODEL:-qwen2.5:7b}
+      HINDSIGHT_API_LLM_BASE_URL: ${HINDSIGHT_API_LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      HINDSIGHT_API_EMBEDDINGS_PROVIDER: onnx
+      HINDSIGHT_API_RERANKER_PROVIDER: flashrank
+      HINDSIGHT_API_RETAIN_MAX_COMPLETION_TOKENS: "16000"
+    ports:
+      - "8888:8888"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8888/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      DATABASE_URL: sqlite:////data/app.db
+      HINDSIGHT_BASE_URL: http://hindsight:8888
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      FEEDBACK_SIGNING_SECRET: ${FEEDBACK_SIGNING_SECRET:-change-me-in-real-deployments}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+      PYTHONUTF8: "1"
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend-data:/data
+    depends_on:
+      hindsight:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      NEXT_PUBLIC_API_BASE: http://backend:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  backend-data:

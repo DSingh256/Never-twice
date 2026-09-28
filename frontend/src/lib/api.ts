@@ -60,6 +60,19 @@ export type MemoryListResult = {
   total?: number;
 };
 
+export type MemoryStats = {
+  bank_id: string;
+  total_memory_units: number;
+  documents: number;
+  by_type: Record<string, number>;
+  audit: {
+    retained_rows: number;
+    incidents_memory_split: number;
+    incidents_heldout_split: number;
+  };
+  app_totals: { analyses: number; feedback: number };
+};
+
 export type EvalRunSummary = {
   runs: Array<{
     id: string;
@@ -124,6 +137,9 @@ export const api = {
       `/api/memory/list?tag=${encodeURIComponent(tag)}&limit=${limit}`,
       { memories: [] }
     ),
+
+  memoryStats: () =>
+    getJson<MemoryStats | null>("/api/memory/stats", null),
 
   evalRuns: () =>
     getJson<EvalRunSummary>("/api/eval/runs", { runs: [] }),
