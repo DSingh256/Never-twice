@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+/*
+ * Black Box Archive design tokens.
+ * "Organizational memory made visible": paper-and-ink archive aesthetic,
+ * monospace accents, evidence-grade restraint.
+ */
+@theme {
+  --color-paper: #f4f1ea;
+  --color-paper-raised: #fbf9f4;
+  --color-ink: #1c1a17;
+  --color-ink-soft: #57534a;
+  --color-line: #d8d2c4;
+  --color-accent: #b45309;
+  --color-danger: #b91c1c;
+  --color-warn: #b45309;
+  --color-ok: #166534;
+  --color-info: #1d4ed8;
+
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* Evidence labels use small-caps mono */
+.evidence-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.stamp {
+  font-family: var(--font-mono);
+  border: 1px solid currentColor;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
