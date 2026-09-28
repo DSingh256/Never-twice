@@ -170,11 +170,17 @@ class MemoryHit(BaseModel):
     def from_hindsight(cls, result: Any) -> "MemoryHit":
         """Normalise a Hindsight recall result item.
 
-        Verified against hindsight-client 0.10.1: results carry `scores.final`,
-        `tags`, `document_id`, `metadata` (a JSON string or dict).
+        Verified against hindsight-client 0.10.1: results carry `scores`
+        (a pydantic RecallScores with final/reranker/semantic/keyword), `tags`,
+        `document_id`, and `metadata` (a JSON string or dict).
         """
-        scores = getattr(result, "scores", None) or {}
-        score = float(scores.get("final", 0.0)) if isinstance(scores, dict) else 0.0
+        raw_scores = getattr(result, "scores", None)
+        if hasattr(raw_scores, "final"):
+            score = float(raw_scores.final or 0.0)
+        elif isinstance(raw_scores, dict):
+            score = float(raw_scores.get("final", 0.0) or 0.0)
+        else:
+            score = 0.0
         metadata = getattr(result, "metadata", None) or {}
         if isinstance(metadata, str):
             import json

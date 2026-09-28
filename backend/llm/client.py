@@ -19,6 +19,7 @@ from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
 from tenacity import (
+    before_sleep_log,
     retry,
     retry_if_exception_type,
     stop_after_attempt,

@@ -126,7 +126,12 @@ class HindsightClient:
             return self._health_report(False, error=f"{type(exc).__name__}: {exc}"[:300])
 
     def ensure_bank(self) -> None:
-        """Create the production bank if missing (idempotent)."""
+        """Create the production bank if missing (idempotent).
+
+        Verified against hindsight-client 0.10.1: BanksApi exposes
+        list_banks()/create_or_update_bank(); the high-level `create_bank`
+        helper is sync-only, so the async path re-checks existence directly.
+        """
         client = self._get_sync()
         try:
             client.create_bank(
@@ -142,8 +147,14 @@ class HindsightClient:
         except Exception as exc:  # noqa: BLE001
             # Bank likely already exists; verify by listing banks.
             try:
-                banks = client.banks.list()
-                ids = {getattr(b, "bank_id", getattr(b, "id", "")) for b in banks}
+                banks = client.banks.list_banks()
+                items = getattr(banks, "banks", None) or getattr(banks, "items", None) or []
+                ids = {
+                    (b.get("bank_id") or b.get("id"))
+                    if isinstance(b, dict)
+                    else (getattr(b, "bank_id", None) or getattr(b, "id", None))
+                    for b in items
+                }
                 if self.bank_id not in ids:
                     raise HindsightUnavailableError(
                         f"bank '{self.bank_id}' missing and create_bank failed: {exc}"
@@ -154,6 +165,40 @@ class HindsightClient:
                 raise HindsightUnavailableError(
                     f"could not ensure bank '{self.bank_id}': {exc} / {exc2}"
                 ) from exc2
+
+    async def aensure_bank(self) -> None:
+        """Async variant of ensure_bank for FastAPI handlers."""
+        client = self._get_async()
+        try:
+            banks = await client.banks.list_banks()
+            items = getattr(banks, "banks", None) or getattr(banks, "items", None) or []
+            ids = {
+                (b.get("bank_id") or b.get("id"))
+                if isinstance(b, dict)
+                else (getattr(b, "bank_id", None) or getattr(b, "id", None))
+                for b in items
+            }
+            if self.bank_id in ids:
+                return  # already exists
+        except Exception as exc:  # noqa: BLE001
+            raise HindsightUnavailableError(f"bank listing failed: {exc}") from exc
+
+        # Missing: create via the low-level API (async-safe).
+        from hindsight_client_api.models import CreateBankRequest
+
+        payload = CreateBankRequest(
+            name="Never Twice operational memory",
+            mission=(
+                "Organizational memory of production incidents: root causes, "
+                "failed fixes, what finally worked, and engineer feedback. Used "
+                "to warn developers before they repeat a historically dangerous "
+                "change."
+            ),
+        )
+        try:
+            await client.banks.create_or_update_bank(self.bank_id, payload)
+        except Exception as exc:  # noqa: BLE001
+            raise HindsightUnavailableError(f"bank creation failed: {exc}") from exc
 
     # ------------------------------------------------------------------ #
     # Retain
