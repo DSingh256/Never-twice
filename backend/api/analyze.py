@@ -165,10 +165,12 @@ async def get_analysis(analysis_id: int, session: Session = Depends(get_session)
     return {
         "id": analysis.id,
         "status": analysis.status,
+        "origin": analysis.origin,
         "repo": analysis.repo,
         "service": analysis.service,
         "pr_url": analysis.pr_url,
         "pr_title": analysis.pr_title,
+        "diff": analysis.diff,
         "diff_truncated": analysis.diff_truncated,
         "change_facts": analysis.change_facts,
         "verdict": analysis.verdict,

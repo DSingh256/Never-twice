@@ -1,6 +1,9 @@
-/* Thin read-only client for the Never Twice API (from the UI's perspective). */
+/* Thin read-only client for the Never Twice API (from the UI's perspective).
+ * Always absolute: server components run in Node (a relative path would fail
+ * there), and the browser pages live on a different port than the API. */
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
+const BASE =
+  process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
 
 export type Health = {
   status: string;
@@ -32,12 +35,15 @@ export type Verdict = {
   }>;
   suggested_checks?: string[];
   learned_from_feedback?: Array<{ note?: string | null }>;
+  supporting_memory_ids?: string[];
   [k: string]: unknown;
 };
 
 export type AnalysisDetail = AnalysisRow & {
   diff?: string | null;
   verdict?: Verdict | null;
+  change_facts?: { summary?: string; change_category?: string; [k: string]: unknown } | null;
+  error?: string | null;
 };
 
 export type FeedbackRow = {
@@ -107,6 +113,15 @@ export type EvalRunDetail = {
   error?: string | null;
 };
 
+export type MemoryHitDto = {
+  id: string;
+  text: string;
+  score: number;
+  fact_type?: string;
+  tags?: string[];
+  document_id?: string | null;
+};
+
 async function getJson<T>(path: string, fallback: T): Promise<T> {
   try {
     const res = await fetch(`${BASE}${path}`, {
@@ -153,6 +168,13 @@ export const api = {
 
   evalRun: (id: string) =>
     getJson<EvalRunDetail | null>(`/api/eval/runs/${encodeURIComponent(id)}`, null),
+
+  /** Live recall against the bank — the same operation the verdict uses. */
+  memorySearch: (q: string, limit = 24) =>
+    getJson<{ memories: MemoryHitDto[] }>(
+      `/api/memory/search?q=${encodeURIComponent(q)}&limit=${limit}`,
+      { memories: [] }
+    ),
 };
 
 export { BASE as API_BASE };

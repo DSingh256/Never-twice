@@ -1,27 +1,34 @@
 import { api } from "@/lib/api";
-import { AnalysisRoom } from "@/components/AnalysisRoom";
+import AnalysisRoom from "./AnalysisRoom";
 import { EmptyState } from "@/components/ui";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyzeIndex() {
-  const { analyses } = await api.analyses(50);
-  const latestDone = analyses.find((a) => a.status === "done") ?? null;
+  const { analyses } = await api.analyses(60);
+  const latestDone = analyses.find((a) => a.status === "done") ?? analyses[0] ?? null;
   const detail = latestDone ? await api.analysis(latestDone.id) : null;
 
-  return (
-    <main className="mx-auto max-w-4xl px-6 py-10">
-      <header className="border-b border-ink pb-6">
-        <p className="evidence-label">Black Box Archive · live analysis</p>
-        <h1 className="mt-2 font-display text-3xl font-bold">Analysis Room</h1>
-        <p className="mt-2 max-w-2xl font-display text-lg italic text-ink-soft">
-          Paste a diff. The archive recalls the incidents it resembles and a
-          verdict is recorded — with every step shown, never hidden.
-        </p>
-      </header>
-      <div className="mt-8">
-        <AnalysisRoom initial={detail} />
-      </div>
-    </main>
-  );
+  if (!detail) {
+    return (
+      <main className="archive-night relative min-h-screen">
+        <div className="archive-fx" />
+        <div className="relative z-10 mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-6 text-center">
+          <p className="plate text-amber">BLACK BOX ARCHIVE · ANALYSIS ROOM</p>
+          <h1 className="display-serif mt-4 text-4xl text-vellum">NO CASES ON RECORD</h1>
+          <p className="mt-4 max-w-md font-grotesk text-sm text-vellum-dim">
+            The archive is empty. Ingest incident reports to build organizational
+            memory, then submit a diff to open the first case.
+          </p>
+          <div className="hazard-strip mt-8 w-40" />
+          <Link href="/" className="plate mt-8 underline">
+            ← return to the briefing
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  return <AnalysisRoom initial={detail} />;
 }

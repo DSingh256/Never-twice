@@ -1,11 +1,14 @@
 @import "tailwindcss";
 
 /*
- * Black Box Archive design tokens.
- * "Organizational memory made visible": paper-and-ink archive aesthetic,
- * monospace accents, evidence-grade restraint.
+ * THE BLACK BOX ARCHIVE — design tokens.
+ * Two archival modes:
+ *   BRIEFING (paper, daylight forensics)  — default
+ *   ANALYSIS (warm near-black, mission control) — the cinematic room
+ * The 3D room never inverts: it IS the dark archive.
  */
 @theme {
+  /* paper mode (briefing) */
   --color-paper: #f4f1ea;
   --color-paper-raised: #fbf9f4;
   --color-ink: #1c1a17;
@@ -17,7 +20,28 @@
   --color-ok: #166534;
   --color-info: #1d4ed8;
 
+  /* the dark archive (analysis room) */
+  --color-night: #100e0c;
+  --color-night-2: #17141180;
+  --color-vellum: #ece4d4;
+  --color-vellum-dim: #b3ab99;
+  --color-vellum-faint: #7a7365;
+  --color-hairline: #ffffff14;
+  --color-amber: #f59e0b;
+  --color-amber-soft: #f59e0b2b;
+  --color-amber-line: #f59e0b66;
+  --color-signal-red: #ef4444;
+  --color-sage: #9db89a;
+  --color-hazard: repeating-linear-gradient(
+    -45deg,
+    #f59e0b,
+    #f59e0b 10px,
+    #100e0c 10px,
+    #100e0c 20px
+  );
+
   --font-display: Georgia, "Times New Roman", serif;
+  --font-grotesk: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
@@ -27,7 +51,9 @@ body {
   color: var(--color-ink);
 }
 
-/* Evidence labels use small-caps mono */
+/* ---------------------------------------------------------------------------
+ * Evidence primitives (shared)
+ * ------------------------------------------------------------------------- */
 .evidence-label {
   font-family: var(--font-mono);
   font-size: 0.68rem;
@@ -42,4 +68,137 @@ body {
   padding: 0.1rem 0.5rem;
   font-size: 0.72rem;
   letter-spacing: 0.08em;
+}
+
+.tag-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+ * The dark archive — analysis room
+ * ------------------------------------------------------------------------- */
+.archive-night {
+  background: var(--color-night);
+  color: var(--color-vellum);
+}
+
+/* film grain + archival scanlines overlay (non-interactive) */
+.archive-fx {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 2px,
+      #ffffff05 2px 3px
+    ),
+    radial-gradient(ellipse at 50% 30%, transparent 55%, #00000066 100%);
+  mix-blend-mode: overlay;
+}
+.archive-fx::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E");
+}
+
+/* corner registration brackets */
+.brackets {
+  position: relative;
+}
+.brackets::before,
+.brackets::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--color-amber-line);
+}
+.brackets::before {
+  top: -1px;
+  left: -1px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.brackets::after {
+  bottom: -1px;
+  right: -1px;
+  border-left: 0;
+  border-top: 0;
+}
+
+/* case file (forensic panel, no SaaS rounding) */
+.case-file {
+  background: #17141199;
+  border: 1px solid var(--color-hairline);
+  backdrop-filter: blur(6px);
+}
+
+.stamp-lg {
+  font-family: var(--font-mono);
+  font-size: clamp(1.8rem, 6vw, 5.2rem);
+  letter-spacing: 0.12em;
+  border: 3px double currentColor;
+  padding: 0.2em 0.45em;
+  line-height: 1;
+  text-transform: uppercase;
+  font-weight: 700;
+  transform: rotate(-4deg);
+}
+
+/* hazard tape strip */
+.hazard-strip {
+  height: 6px;
+  background: var(--color-hazard);
+  opacity: 0.75;
+}
+
+/* amber evidence emphasis in dark mode */
+.amber-ink {
+  color: var(--color-amber);
+}
+
+/* engraved plate text */
+.plate {
+  font-family: var(--font-mono);
+  letter-spacing: 0.28em;
+  font-size: 0.6rem;
+  color: var(--color-vellum-faint);
+  text-transform: uppercase;
+}
+
+/* thin progress rail (right edge) */
+.progress-rail {
+  position: fixed;
+  right: 18px;
+  top: 12vh;
+  bottom: 12vh;
+  width: 1px;
+  background: var(--color-hairline);
+  z-index: 40;
+}
+.progress-rail > span {
+  position: absolute;
+  left: -2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--color-amber);
+}
+
+/* serif display in the dark room */
+.display-serif {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .archive-fx::after {
+    opacity: 0.25;
+  }
 }
