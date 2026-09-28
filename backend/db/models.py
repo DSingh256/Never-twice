@@ -63,7 +63,8 @@ class Incident(SQLModel, table=True):
     extraction_confidence: Optional[float] = None
     extraction_model: Optional[str] = None
     # memory | heldout. Only `memory` incidents may ever be retained.
-    split: str = Field(default="memory", index=True)
+    # Empty default so assign_splits() can classify new rows ("" is falsy).
+    split: str = Field(default="", index=True)
     created_at: datetime = Field(default_factory=utcnow)
 
 

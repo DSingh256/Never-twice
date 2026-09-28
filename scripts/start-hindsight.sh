@@ -28,8 +28,11 @@ export PYTHONUTF8="${PYTHONUTF8:-1}"
 export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8}"
 
 # --- LLM backend (OpenAI-compatible endpoint) ---
+# NOTE: the model must support tool calling - Hindsight reflect drives its
+# internal retrieval through tool calls and 500s without one. qwen2.5:7b does;
+# llama3.2:latest (3B) emits malformed tool calls and does not.
 export HINDSIGHT_API_LLM_PROVIDER="${HINDSIGHT_API_LLM_PROVIDER:-ollama}"
-export HINDSIGHT_API_LLM_MODEL="${HINDSIGHT_API_LLM_MODEL:-llama3.2:latest}"
+export HINDSIGHT_API_LLM_MODEL="${HINDSIGHT_API_LLM_MODEL:-qwen2.5:7b}"
 export HINDSIGHT_API_LLM_BASE_URL="${HINDSIGHT_API_LLM_BASE_URL:-http://127.0.0.1:11434/v1}"
 
 # --- Embeddings / reranking ---
