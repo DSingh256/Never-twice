@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { SiteNav } from "@/components/site-nav";
 
 export const metadata: Metadata = {
   title: "Never Twice — Black Box Archive",
@@ -24,7 +25,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        <SiteNav />
+        {children}
+      </body>
     </html>
   );
 }
