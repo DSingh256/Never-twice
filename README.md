@@ -24,7 +24,26 @@ The judge question, answered by construction:
 3. **The ablation is measured, not asserted.** The same held-out benchmark is
    scored three ways (no memory / memory as context / memory + reflect +
    feedback), with accuracy, precision, recall and false-positive rate computed
-   from per-item rows. See `data/eval_run.log` or `GET /api/eval/runs`.
+   from per-item rows. Latest run (Groq `openai/gpt-oss-120b`):
+
+   | cond | scored | accuracy | precision | recall | F1 | FPR | latency |
+   |---|---|---|---|---|---|---|---|
+   | A — LLM only | 6 | 0.33 | 0.00 | 0.00 | 0.00 | 0.00 | 1.5s |
+   | B — + recall | 6 | 0.67 | 1.00 | 0.50 | 0.67 | 0.00 | 6.9s |
+   | C — full pipeline | 5 | 0.80 | 1.00 | 0.75 | 0.86 | 0.00 | 82s |
+
+   The naked model missed every historically dangerous change (recall 0.00);
+   memory-backed conditions hold the false-positive rate at zero. One C item
+   errored on a reflect timeout and is recorded, not hidden. See
+   `GET /api/eval/runs` for per-item rows.
+
+## The Tribunal (live before/after)
+
+The ablation, made interactive: `/tribunal` judges one diff three ways — the
+naked model, the model shown recalled memories, and the full production
+pipeline — with witness verdicts streaming into their seats and a delta panel
+quantifying what the archive changed. Scripted version:
+`scripts/tribunal_probe.py`.
 
 ## Architecture (5-minute tour)
 

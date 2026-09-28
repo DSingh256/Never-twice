@@ -114,14 +114,21 @@ control system, not a suggestion box."
 
 ## 4. The measured claim (2 min) — Eval
 
-Open **/eval** and show the latest run's table:
+Open **/eval** and show the latest run's table (run 6, Groq
+`openai/gpt-oss-120b`, label `groq-gpt-oss-120b`):
 
 ```
-cond  scored    acc  prec   rec    f1   fpr   conf  lat_ms
-A                                                   ← LLM only
-B                                                   ← + recall
-C                                                   ← + reflect + feedback
+cond  scored    acc  prec   rec    f1   fpr   lat_ms
+A        6      0.33  0.00  0.00  0.00  0.00     1455   ← LLM only
+B        6      0.67  1.00  0.50  0.67  0.00     6918   ← + recall
+C        5      0.80  1.00  0.75  0.86  0.00    81781   ← + reflect + feedback
 ```
+
+Read it out loud: the naked model missed **every** historically dangerous
+change (recall 0.00) while rating them low-risk; with memory the false-positive
+rate is 0.00 across the board and C recovers 3 of 4 risky cases. One C item
+(`i15-safe`) errored on a reflect timeout and is recorded, not hidden — C's row
+is over 5 scored cases for that reason.
 
 - The benchmark was generated from **held-out** incidents (one risky + one safe
   PR per incident, plus near-miss controls).
