@@ -203,6 +203,24 @@ class HindsightClient:
     # ------------------------------------------------------------------ #
     # Retain
     # ------------------------------------------------------------------ #
+    def _fresh_sync(self):
+        """A Hindsight client whose loop-bound resources are not shared.
+
+        The cached sync client keeps aiohttp sessions alive across calls; when
+        calls come from different threads or after temporary asyncio.run loops
+        (eval workers), a session can end up bound to a dead/foreign loop and
+        every later call dies with 'Timeout context manager should be used
+        inside a task'. Scripts and workers use fresh clients; the long-lived
+        FastAPI path uses the async singleton instead.
+        """
+        from hindsight_client import Hindsight as _H
+
+        return _H(
+            base_url=self._settings.hindsight_base_url,
+            api_key=self._settings.hindsight_api_key or None,
+            timeout=self._settings.hindsight_timeout_seconds,
+        )
+
     def retain_memory(
         self,
         content: str,
@@ -215,17 +233,25 @@ class HindsightClient:
         incident_ts: str | None = None,
     ) -> dict[str, Any]:
         """Retain one memory unit into the production bank. Sync variant."""
-        client = self._get_sync()
+        client = self._fresh_sync()
         all_tags = [TAG_BANK, f"kind:{memory_kind}", *(tags or [])]
-        result = client.retain(
-            bank_id=self.bank_id,
-            content=content,
-            context=context,
-            document_id=document_id,
-            tags=all_tags,
-            metadata=stringify_metadata(metadata),
-            **({"timestamp": incident_ts} if incident_ts else {}),
-        )
+        try:
+            result = client.retain(
+                bank_id=self.bank_id,
+                content=content,
+                context=context,
+                document_id=document_id,
+                tags=all_tags,
+                metadata=stringify_metadata(metadata),
+                **({"timestamp": incident_ts} if incident_ts else {}),
+            )
+        finally:
+            try:
+                import asyncio
+
+                asyncio.run(client.aclose())  # aclose is a coroutine
+            except Exception:  # noqa: BLE001
+                pass
         return {
             "items_count": getattr(result, "items_count", None),
             "operation_id": getattr(result, "operation_id", None),
@@ -280,16 +306,32 @@ class HindsightClient:
         tags_match: str = "any",
         types: list[str] | None = None,
     ) -> list[MemoryHit]:
-        """Sync recall returning normalised MemoryHit objects."""
-        response = self._get_sync().recall(
-            bank_id=self.bank_id,
-            query=query,
-            max_tokens=max_tokens,
-            budget=budget,
-            types=types,
-            tags=tags,
-            tags_match=tags_match,
-        )
+        """Sync recall returning normalised MemoryHit objects.
+
+        The sync client owns its own event loop via _run_async; its aiohttp
+        pool is bound to whichever loop created it. Calling this from a thread
+        while another loop is around (FastAPI, eval workers) can resurrect a
+        foreign loop's pool - 'Timeout context manager should be used inside a
+        task'. A fresh client per call is always safe; cost is one connection.
+        """
+        client = self._fresh_sync()
+        try:
+            response = client.recall(
+                bank_id=self.bank_id,
+                query=query,
+                max_tokens=max_tokens,
+                budget=budget,
+                types=types,
+                tags=tags,
+                tags_match=tags_match,
+            )
+        finally:
+            try:
+                import asyncio
+
+                asyncio.run(client.aclose())  # aclose is a coroutine
+            except Exception:  # noqa: BLE001
+                pass
         return self._normalise_hits(response)
 
     async def arecall(

@@ -42,15 +42,24 @@ def _extract_json(text: str) -> str:
     """Pull the JSON object out of a model reply.
 
     Models wrap JSON in code fences, prose, or stray text; we accept all of it.
+    Model diffs also contain literal newlines INSIDE JSON string values (strict
+    JSON requires \\n escapes) - the `strict=False` fallback accepts control
+    characters inside strings, which rescues those replies instead of burning
+    a model-chain fallback on a syntax technicality.
     """
     text = text.strip()
     # Strip ```json ... ``` fences.
     fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.DOTALL)
     if fence:
         text = fence.group(1).strip()
-    # Direct parse first.
+    # Direct parse first (strict, then lenient about control chars in strings).
     try:
         json.loads(text)
+        return text
+    except Exception:
+        pass
+    try:
+        json.loads(text, strict=False)
         return text
     except Exception:
         pass
@@ -62,6 +71,11 @@ def _extract_json(text: str) -> str:
             candidate = text[start : end + 1]
             try:
                 json.loads(candidate)
+                return candidate
+            except Exception:
+                continue
+            try:
+                json.loads(candidate, strict=False)
                 return candidate
             except Exception:
                 continue

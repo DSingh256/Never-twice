@@ -42,12 +42,13 @@ def assign_splits(session: Session) -> dict[str, int]:
     counts = {"memory": 0, "heldout": 0}
     for idx, incident in enumerate(pending):
         incident.split = "heldout" if idx in heldout_indices else "memory"
-        counts[incident.split] += 1
         session.add(incident)
     session.commit()
 
-    # Include already-assigned rows in the report.
+    # The report always reflects the FULL corpus (assigned + newly split), so a
+    # re-run on an already-partitioned corpus reports the same totals instead
+    # of zeros with stray keys.
     for incident in incidents:
-        if incident.split:
-            counts.setdefault(incident.split, 0)
+        if incident.split in counts:
+            counts[incident.split] += 1
     return counts

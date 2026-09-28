@@ -67,9 +67,10 @@ class IncidentExtraction(BaseModel):
             return []
         if isinstance(v, str):
             v = [v]
-        return [str(item).strip() for item in v if str(item).strip()]
+        # None entries mean 'no value' - dropped, never stringified.
+        return [str(item).strip() for item in v if item is not None and str(item).strip()]
 
-    @field_validator("title", "org", "service_or_component", "trigger_change", "root_cause", "successful_fix", "precursor_signature", mode="before")
+    @field_validator("title", "org", "service_or_component", "severity", "trigger_change", "root_cause", "successful_fix", "precursor_signature", mode="before")
     @classmethod
     def _clean_str(cls, v: Any) -> Any:
         if isinstance(v, str):

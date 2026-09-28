@@ -42,3 +42,7 @@ Thumbs.db
 
 # --- Large local reference copies ---
 openapi_snapshot.json
+
+# --- Eval build artefacts & runtime logs (regenerable) ---
+data/benchmark/
+data/*.log
