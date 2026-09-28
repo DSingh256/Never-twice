@@ -1,0 +1,53 @@
+# Evaluation configuration.
+#
+# The split is seeded so the same corpus always produces the same memory/held-out
+# partition. Held-out incidents are NEVER retained into the production memory
+# bank - that guarantee is enforced in code and asserted in tests.
+
+split:
+  # Fraction of successfully extracted incidents reserved for evaluation.
+  heldout_ratio: 0.35
+  seed: 20260928
+  # Incidents are ordered by this key before splitting, so the result does not
+  # depend on database insertion order.
+  order_by: source_url
+
+benchmark:
+  # Per held-out incident we generate one risky PR and one safe PR.
+  cases_per_incident:
+    risky: 1
+    safe: 1
+  # Additionally generate near-miss safe PRs that superficially resemble a
+  # precursor so that false positives are actually measurable.
+  near_miss_safe_ratio: 0.5
+  seed: 20260928
+  # Where generated artefacts live. These are build outputs, not source.
+  output_dir: data/benchmark
+
+# The three ablation conditions. A is the "is this just RAG?" control.
+conditions:
+  A:
+    label: "LLM only"
+    description: "The model sees the diff and nothing else. No organizational memory."
+    use_recall: false
+    use_reflect: false
+    use_feedback: false
+  B:
+    label: "LLM + recall"
+    description: "Retrieved historical memories are handed to the model as context."
+    use_recall: true
+    use_reflect: false
+    use_feedback: false
+  C:
+    label: "LLM + recall + reflect + feedback"
+    description: "Adds Hindsight reflect over the evidence plus engineer feedback memories."
+    use_recall: true
+    use_reflect: true
+    use_feedback: true
+
+scoring:
+  # An item counts as a positive detection at or above this risk level.
+  positive_at_or_above: medium
+  # Feedback simulation for condition C. Feedback is derived from ground-truth
+  # labels on an earlier slice only - never on the item currently being scored.
+  feedback_warmup_fraction: 0.5

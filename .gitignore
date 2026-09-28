@@ -1,0 +1,44 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- Virtual environments ---
+.venv/
+.venv-hindsight/
+env/
+venv/
+
+# --- Never Twice runtime state ---
+# The app's own SQLite database and any local scratch space.
+*.db
+*.db-journal
+*.sqlite3
+data/app.db
+data/scratch/
+.hindsight/
+
+# --- Secrets ---
+.env
+.env.local
+.env.*.local
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+frontend/.next/
+frontend/node_modules/
+*.tsbuildinfo
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# --- Large local reference copies ---
+openapi_snapshot.json

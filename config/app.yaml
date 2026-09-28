@@ -1,0 +1,81 @@
+# Core application configuration. Values here are product behaviour, not secrets:
+# secrets live in `.env`. Nothing in this file should ever be edited at runtime by
+# the app - it is read once and exposed read-only via GET /api/config.
+
+org:
+  name: "Never Twice Demo Org"
+  # Shown in PR comments and the UI header.
+  display_name: "Never Twice"
+
+memory:
+  # Logical name of the Hindsight bank holding this org's operational memory.
+  # The concrete bank id comes from HINDSIGHT_BANK_ID in .env.
+  bank_label: "operational-memory"
+  # Memory is written in small, individually meaningful units rather than one
+  # blob per article, so recall can surface a single failed fix on its own.
+  retain_units:
+    - incident_summary
+    - failed_fix
+    - successful_fix
+    - precursor_signature
+    - feedback
+    - pr_outcome
+  # How many memories recall may return per analysis step.
+  recall_budget: mid
+  recall_max_tokens: 4096
+  # Budget for the reflect call, which is the expensive reasoning step.
+  reflect_budget: mid
+  reflect_max_tokens: 2048
+
+# The taxonomy every incident and every diff is classified into. Changing these
+# values changes extraction output, so keep it stable between eval runs.
+change_categories:
+  - config
+  - deploy
+  - migration
+  - dependency
+  - capacity
+  - other
+
+risk:
+  levels: [none, low, medium, high]
+  # A verdict may only be raised above `low` if at least this many independent
+  # memories support it. Guards against a single weak retrieval producing alarm.
+  min_evidence_for_elevated: 2
+  # Retrieval score (Hindsight `scores.final`) below this is treated as noise and
+  # dropped before it can influence the verdict.
+  min_retrieval_score: 0.05
+  # Cap on evidence items handed to the reasoning step.
+  max_evidence_items: 12
+
+# Confidence is COMPUTED, never asked of the model. These weights control the
+# contribution of each component to the final 0..1 confidence score.
+confidence:
+  weights:
+    evidence: 0.45
+    retrieval: 0.30
+    feedback_agreement: 0.25
+  # Number of supporting memories at which the evidence component saturates.
+  evidence_saturation: 5
+  # Confidence when there is no evidence at all. Deliberately low: absence of
+  # memory is not evidence of safety.
+  floor: 0.05
+
+analysis:
+  # Guard-rail thresholds for the "small sample" disclosure in the UI.
+  small_sample_memory_count: 3
+  # How long an analysis may run before it is marked failed, in seconds.
+  timeout_seconds: 300
+  # Maximum diff size accepted, in bytes, before we truncate and say so.
+  max_diff_bytes: 400000
+
+ingest:
+  # Articles shorter than this after cleaning are almost always nav/boilerplate
+  # scrape failures rather than real postmortems.
+  min_clean_chars: 800
+  # Extraction is retried this many times before the source is recorded failed.
+  max_extraction_attempts: 2
+
+feedback:
+  # Feedback memories retain at this tag prefix so recall can isolate them.
+  tag_prefix: "feedback:"
