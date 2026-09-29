@@ -20,6 +20,7 @@ venv/
 data/app.db
 data/scratch/
 .hindsight/
+.freebuff/
 
 # --- Secrets ---
 .env
@@ -46,3 +47,21 @@ openapi_snapshot.json
 # --- Eval build artefacts & runtime logs (regenerable) ---
 data/benchmark/
 data/*.log
+*.log
+
+# --- Excluded content, video, media and video rendering scripts ---
+content/
+render/
+submission.mp4
+*.mp4
+*.webm
+*.avi
+*.mov
+*.mkv
+*.flv
+*.mp3
+*.wav
+*.aac
+*.ogg
+scripts/render_video.py
+tests/test_submission_cases.py
