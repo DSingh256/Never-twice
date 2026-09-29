@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --night: #100e0c; --vellum: #ece4d4; --dim: #b3ab99; --faint: #7a7365;
+    --amber: #f59e0b; --ok: #9db89a; --hairline: #ffffff14;
+    --mono: "Consolas", "Menlo", monospace;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  body { width: 1280px; height: 760px; background: var(--night); color: var(--vellum);
+         font-family: var(--mono); position: relative; overflow: hidden; padding: 40px 48px; }
+  body::after { content: ""; position: absolute; inset: 0; opacity: .5; mix-blend-mode: overlay; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E"); }
+  .titlebar { display: flex; justify-content: space-between; border-bottom: 1px solid var(--hairline);
+              padding-bottom: 14px; margin-bottom: 22px; font-size: 12px; letter-spacing: .28em;
+              color: var(--faint); text-transform: uppercase; }
+  .titlebar b { color: var(--amber); font-weight: 400; }
+  .cmd { color: var(--faint); font-size: 16px; margin: 20px 0 8px; }
+  .cmd b { color: var(--vellum); font-weight: 400; }
+  .out { font-size: 16px; line-height: 1.6; white-space: pre; color: var(--dim); }
+  .out .k { color: var(--amber); }
+  .out .ok { color: var(--ok); }
+  .out .n { color: var(--vellum); }
+</style>
+</head>
+<body>
+  <div class="titlebar"><span>NEVER TWICE <b>//</b> LIVE API</span><span>backend :8000 · hindsight :8888</span></div>
+
+  <div class="cmd">$ <b>curl localhost:8000/api/eval/split-check</b></div>
+  <div class="out"><span class="k">"heldout_count"</span>: <span class="n">9</span>,
+<span class="k">"memory_count"</span>: <span class="n">17</span>,
+<span class="k">"retained_incident_count"</span>: <span class="n">17</span>,
+<span class="k">"heldout_leaked_into_bank"</span>: <span class="ok">[]</span>,
+<span class="k">"ok"</span>: <span class="ok">true</span></div>
+
+  <div class="cmd">$ <b>curl "localhost:8000/api/memory/search?q=min_healthy_hosts"</b></div>
+  <div class="out"><span class="k">"text"</span>: <span class="n">"Engineer feedback on a Never Twice risk verdict:
+         'good_catch'. The change was: [downgraded: only 0
+         supporting memory] ... The change from setting
+         min_healthy_hosts to 0 closely resembles the
+         historical pattern ... (proposed level was 'low',
+         evidence count 0)."</span>
+<span class="k">"score"</span>: <span class="n">1.0942</span>  <span class="k">"tags"</span>: [<span class="n">"kind:feedback"</span>, <span class="n">"bank:nevertwice"</span>]</div>
+
+  <div class="cmd">$ <b>curl localhost:8000/api/memory/stats</b></div>
+  <div class="out"><span class="k">"total_memory_units"</span>: <span class="n">135</span>,
+<span class="k">"documents"</span>: <span class="n">67</span>,
+<span class="k">"incidents_memory_split"</span>: <span class="n">17</span>, <span class="k">"incidents_heldout_split"</span>: <span class="n">9</span>,
+<span class="k">"analyses"</span>: <span class="n">89</span>, <span class="k">"feedback"</span>: <span class="n">1</span></div>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --paper: #f4f1ea; --raised: #fbf9f4; --ink: #1c1a17; --soft: #57534a;
+    --line: #d8d2c4; --accent: #b45309; --danger: #b91c1c; --ok: #166534; --info: #1d4ed8;
+    --mono: "Consolas", "Menlo", monospace; --serif: Georgia, "Times New Roman", serif;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  body { width: 1400px; height: 1000px; background: var(--paper); color: var(--ink);
+         font-family: var(--serif); position: relative; overflow: hidden; }
+  .head { position: absolute; top: 40px; left: 64px; right: 64px; display: flex;
+          justify-content: space-between; align-items: baseline; }
+  .head .t { font-family: var(--mono); font-size: 14px; letter-spacing: .3em; color: var(--soft); text-transform: uppercase; }
+  .head .t b { color: var(--accent); font-weight: 400; }
+  .hr { position: absolute; top: 76px; left: 64px; right: 64px; border-top: 1px solid var(--line); }
+  svg.wire { position: absolute; top: 96px; left: 0; }
+
+  .node rect.card { fill: var(--raised); stroke: var(--ink); stroke-width: 1.4; }
+  .node text.title { font-family: var(--mono); font-size: 17px; font-weight: 700; fill: var(--ink); letter-spacing: .06em; }
+  .node text.sub { font-family: var(--mono); font-size: 12.5px; fill: var(--soft); letter-spacing: .02em; }
+  .lane { position: absolute; font-family: var(--mono); font-size: 11px; letter-spacing: .34em;
+          color: var(--soft); text-transform: uppercase; writing-mode: vertical-rl; }
+  .edge { stroke: var(--ink); stroke-width: 1.6; fill: none; }
+  .edge.mem { stroke: var(--accent); stroke-width: 1.6; fill: none; }
+  .edge.loop { stroke: var(--ok); stroke-width: 1.6; fill: none; stroke-dasharray: 7 5; }
+  .elabel { font-family: var(--mono); font-size: 12px; fill: var(--soft); letter-spacing: .04em; }
+  .elabel.acc { fill: var(--accent); }
+  .elabel.ok { fill: var(--ok); }
+  .badge { font-family: var(--mono); font-size: 11.5px; fill: var(--paper); }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="t">NEVER TWICE <b>//</b> PIPELINE</div>
+    <div class="t">RETAIN · RECALL · REFLECT · FEEDBACK</div>
+  </div>
+  <div class="hr"></div>
+
+  <svg class="wire" width="1400" height="880" viewBox="0 0 1400 880">
+    <!-- ======================= LEFT LANE: INGEST ======================= -->
+    <g class="node">
+      <rect class="card" x="50" y="120" width="230" height="92" />
+      <text class="title" x="70" y="158">SOURCES.YAML</text>
+      <text class="sub" x="70" y="184">105 real postmortem URLs</text>
+    </g>
+    <g class="node">
+      <rect class="card" x="50" y="290" width="230" height="92" />
+      <text class="title" x="70" y="328">FETCH + EXTRACT</text>
+      <text class="sub" x="70" y="354">schema-validated, LLM</text>
+    </g>
+    <g class="node">
+      <rect class="card" x="50" y="460" width="230" height="92" />
+      <text class="title" x="70" y="498">SPLIT (SEEDED)</text>
+      <text class="sub" x="70" y="524">memory 17 / heldout 9</text>
+    </g>
+    <g class="node">
+      <rect class="card" x="50" y="630" width="230" height="92" />
+      <text class="title" x="70" y="668">RETAIN</text>
+      <text class="sub" x="70" y="694">typed units → Hindsight</text>
+    </g>
+    <path class="edge" d="M165 212 L165 290"/>
+    <path class="edge" d="M165 382 L165 460"/>
+    <path class="edge" d="M165 552 L165 630"/>
+
+    <!-- rejected branch -->
+    <g class="node">
+      <rect x="50" y="770" width="230" height="64" fill="none" stroke="var(--danger)" stroke-dasharray="5 4"/>
+      <text class="sub" x="70" y="798" fill="var(--danger)">no root cause → rejected,</text>
+      <text class="sub" x="70" y="818" fill="var(--danger)">never retained</text>
+    </g>
+    <path class="edge" d="M165 722 L165 770" stroke="var(--danger)" stroke-dasharray="5 4"/>
+
+    <!-- ===================== MIDDLE: HINDSIGHT ========================= -->
+    <g class="node">
+      <rect class="card" x="420" y="330" width="300" height="330" stroke="var(--accent)" stroke-width="2"/>
+      <text class="title" x="446" y="378" fill="var(--accent)">HINDSIGHT BANK</text>
+      <text class="sub" x="446" y="404">organizational memory</text>
+      <g font-family="var(--mono)">
+        <rect x="446" y="430" width="248" height="40" fill="var(--paper)" stroke="var(--line)"/>
+        <text class="elabel" x="458" y="455">incident summaries</text>
+        <rect x="446" y="480" width="248" height="40" fill="var(--paper)" stroke="var(--accent)"/>
+        <text class="elabel acc" x="458" y="505">FAILED FIXES ◄ first-class</text>
+        <rect x="446" y="530" width="248" height="40" fill="var(--paper)" stroke="var(--line)"/>
+        <text class="elabel" x="458" y="555">successful fixes</text>
+        <rect x="446" y="580" width="248" height="40" fill="var(--paper)" stroke="var(--line)"/>
+        <text class="elabel" x="458" y="605">precursor signatures</text>
+        <rect x="446" y="630" width="248" height="40" fill="var(--paper)" stroke="var(--ok)"/>
+        <text class="elabel ok" x="458" y="655">engineer feedback</text>
+      </g>
+    </g>
+    <path class="edge mem" d="M280 676 C 350 676, 360 640, 420 620"/>
+    <text class="elabel acc" x="300" y="662">typed units</text>
+
+    <!-- ===================== RIGHT: THE GATE =========================== -->
+    <g class="node">
+      <rect class="card" x="880" y="120" width="300" height="120"/>
+      <text class="title" x="902" y="158">PROPOSED DIFF</text>
+      <text class="sub" x="902" y="184">PR / merge request</text>
+    </g>
+    <g class="node">
+      <rect class="card" x="880" y="300" width="300" height="120"/>
+      <text class="title" x="902" y="338">CHANGE FACTS</text>
+      <text class="sub" x="902" y="364">config keys, old→new, component</text>
+    </g>
+    <g class="node">
+      <rect class="card" x="880" y="480" width="300" height="140"/>
+      <text class="title" x="902" y="518">REFLECT + VERDICT</text>
+      <text class="sub" x="902" y="544">risk level + rationale</text>
+      <text class="sub" x="902" y="566">confidence computed in Python</text>
+      <text class="sub" x="902" y="588">evidence · retrieval · feedback</text>
+    </g>
+    <g class="node">
+      <rect class="card" x="880" y="700" width="300" height="92" stroke="var(--danger)"/>
+      <text class="title" x="902" y="738" fill="var(--danger)">MERGE GATE</text>
+      <text class="sub" x="902" y="764">warn / block before production</text>
+    </g>
+    <path class="edge" d="M1030 240 L1030 300"/>
+    <path class="edge mem" d="M1030 420 L1030 480"/>
+    <text class="elabel acc" x="1042" y="458">recall query</text>
+    <path class="edge" d="M1030 620 L1030 700"/>
+
+    <!-- recall arc Hindsight -> gate -->
+    <path class="edge mem" d="M720 470 C 790 470, 810 430, 880 380"/>
+    <text class="elabel acc" x="756" y="440">recall + evidence</text>
+
+    <!-- feedback loop back into bank -->
+    <path class="edge loop" d="M880 746 C 700 746, 560 720, 570 660"/>
+    <text class="elabel ok" x="430" y="806">engineer grades verdict (good_catch / false_positive)</text>
+    <text class="elabel ok" x="430" y="826">→ retained as memory → next verdict cites it</text>
+
+    <!-- ===================== FAR RIGHT: EVAL =========================== -->
+    <g class="node">
+      <rect class="card" x="1265" y="480" width="120" height="140" stroke="var(--ink)"/>
+      <text class="title" x="1281" y="518" font-size="14">A/B/C</text>
+      <text class="sub" x="1281" y="544" font-size="11">naked LLM</text>
+      <text class="sub" x="1281" y="562" font-size="11">+ recall</text>
+      <text class="sub" x="1281" y="580" font-size="11">full pipeline</text>
+    </g>
+    <path class="edge" d="M1180 550 L1265 550" stroke-dasharray="4 4"/>
+    <text class="elabel" x="1186" y="538">held-out</text>
+    <text class="elabel" x="1186" y="572">benchmark</text>
+
+    <!-- lane labels -->
+    <div></div>
+  </svg>
+
+  <div class="lane" style="left: 26px; top: 930px;">INGEST</div>
+  <div class="lane" style="left: 560px; top: 910px;">MEMORY</div>
+  <div class="lane" style="left: 1010px; top: 910px;">GATE</div>
+  <div class="lane" style="left: 1310px; top: 910px;">EVAL</div>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --night: #100e0c; --vellum: #ece4d4; --vellum-dim: #b3ab99; --faint: #7a7365;
+    --amber: #f59e0b; --amber-line: #f59e0b66; --hairline: #ffffff14;
+    --mono: "Consolas", "Menlo", monospace;
+    --serif: Georgia, "Times New Roman", serif;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  body { width: 1200px; height: 630px; background: var(--night); color: var(--vellum);
+         overflow: hidden; position: relative;
+         font-family: var(--serif); }
+  /* grain */
+  body::after { content: ""; position: absolute; inset: 0; opacity: .5; mix-blend-mode: overlay; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E"); }
+  .frame { position: absolute; inset: 22px; border: 1px solid var(--hairline); }
+  .frame::before, .frame::after { content: ""; position: absolute; width: 16px; height: 16px; border: 1px solid var(--amber-line); }
+  .frame::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+  .frame::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+  .hazard { position: absolute; top: 0; left: 0; right: 0; height: 8px;
+    background: repeating-linear-gradient(-45deg, var(--amber), var(--amber) 10px, var(--night) 10px, var(--night) 20px); opacity: .8; }
+  .plate { position: absolute; top: 44px; left: 56px; font-family: var(--mono); font-size: 13px;
+           letter-spacing: .32em; color: var(--faint); text-transform: uppercase; }
+  .plate b { color: var(--amber); font-weight: 400; }
+  h1 { position: absolute; top: 130px; left: 56px; right: 56px; font-size: 64px; line-height: 1.12;
+       font-weight: 700; letter-spacing: -0.01em; color: var(--vellum); }
+  h1 em { font-style: normal; color: var(--amber); }
+  .sub { position: absolute; top: 340px; left: 56px; right: 56px; font-family: var(--mono);
+         font-size: 17px; line-height: 1.65; color: var(--vellum-dim); max-width: 760px; }
+  .sub b { color: var(--vellum); font-weight: 400; }
+  .seal { position: absolute; right: 56px; top: 300px; width: 190px; height: 190px; border: 1px double var(--amber-line);
+          border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+          transform: rotate(6deg); }
+  .seal .big { font-family: var(--mono); font-size: 44px; color: var(--amber); letter-spacing: .04em; }
+  .seal .small { font-family: var(--mono); font-size: 11px; letter-spacing: .3em; color: var(--vellum-dim); text-transform: uppercase; margin-top: 6px; }
+  .foot { position: absolute; bottom: 40px; left: 56px; right: 56px; display: flex; justify-content: space-between;
+          font-family: var(--mono); font-size: 12.5px; letter-spacing: .18em; color: var(--faint); text-transform: uppercase; }
+</style>
+</head>
+<body>
+  <div class="hazard"></div>
+  <div class="frame"></div>
+  <div class="plate">CASE FILE <b>//</b> NEVER-TWICE <b>//</b> DEPLOYMENT GATE</div>
+  <h1>Failed fixes are the most<br>valuable memories your<br>agent isn't <em>keeping.</em></h1>
+  <div class="sub">
+    A deployment gate that cross-examines every merge request against the
+    organization's postmortem memory — where <b>failed fixes</b> are first-class
+    citizens, and the loop closes when engineers grade the verdicts.
+  </div>
+  <div class="seal">
+    <div class="big">A→C</div>
+    <div class="small">recall 0.00 → 0.75</div>
+  </div>
+  <div class="foot">
+    <span>MEMORY SPLIT 17 / 9 · FPR 0.00</span>
+    <span>EXHIBIT 001 · HINDSIGHT</span>
+  </div>
+</body>
+</html>
