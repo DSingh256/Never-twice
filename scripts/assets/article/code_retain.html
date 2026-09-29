@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --night: #100e0c; --vellum: #ece4d4; --dim: #b3ab99; --faint: #7a7365;
+    --amber: #f59e0b; --ok: #9db89a; --hairline: #ffffff14;
+    --mono: "Consolas", "Menlo", monospace;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  body { width: 1280px; height: 760px; background: var(--night); color: var(--vellum);
+         font-family: var(--mono); position: relative; overflow: hidden; padding: 40px 48px; }
+  body::after { content: ""; position: absolute; inset: 0; opacity: .5; mix-blend-mode: overlay; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E"); }
+  .bar { display: flex; justify-content: space-between; border-bottom: 1px solid var(--hairline);
+         padding-bottom: 14px; margin-bottom: 24px; font-size: 12px; letter-spacing: .28em;
+         color: var(--faint); text-transform: uppercase; }
+  .bar b { color: var(--amber); font-weight: 400; }
+  pre { font-size: 19px; line-height: 1.75; white-space: pre; color: var(--dim); }
+  .cm { color: var(--faint); }
+  .kw { color: var(--amber); }
+  .fn { color: var(--vellum); }
+  .st { color: var(--ok); }
+  .hl { color: var(--amber); }
+</style>
+</head>
+<body>
+  <div class="bar"><span>backend/pipeline/retain.py <b>//</b> typed memory units</span><span>failed fixes = first-class</span></div>
+<pre><span class="cm"># backend/pipeline/retain.py (excerpt) — one incident, several typed units</span>
+<span class="fn">units</span> = [
+    (<span class="st">"incident_summary"</span>, incident.title, [incident.summary]),
+    (<span class="hl">"failed_fix"</span>,       incident.title, incident.failed_fixes),
+    (<span class="st">"successful_fix"</span>,   incident.title, [incident.successful_fix]),
+    (<span class="st">"precursor"</span>,        incident.title, [incident.precursor_signature]),
+]
+<span class="kw">for</span> kind, title, facts <span class="kw">in</span> units:
+    <span class="kw">for</span> fact <span class="kw">in</span> facts:
+        hindsight.<span class="fn">retain_memory</span>(
+            content=fact,
+            context=f<span class="st">"{title} ({kind})"</span>,
+            memory_kind=kind,
+            tags=[<span class="st">"kind:incident"</span>, f<span class="st">"unit:{kind}"</span>],
+            document_id=f<span class="st">"incident-{incident.id}"</span>,
+        )</pre>
+</body>
+</html>
